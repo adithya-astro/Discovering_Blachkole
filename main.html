@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Treasure Hunt</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef2f7;color:#172033;overflow:hidden}
+#app{height:100vh;display:flex;flex-direction:column}
+header{height:74px;background:#182235;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+h1{font-size:21px;margin:0}.sub{font-size:12px;color:#aeb9ca;margin-top:3px}
+#status{text-align:right;font-weight:bold;font-size:17px}.small{font-size:11px;color:#aeb9ca;margin-top:3px}
+.main{display:flex;flex:1;min-height:0}
+aside{width:245px;background:white;border-right:1px solid #d8dee8;padding:16px;overflow:auto}
+.section{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#68758a;margin:4px 0 9px}
+.tool{width:100%;min-height:44px;margin-bottom:8px;border:1px solid #d5dce6;border-radius:9px;background:white;text-align:left;padding:9px 11px;font-weight:650;cursor:pointer}
+.tool.active{background:#e8f1ff;border-color:#3977d8;color:#1c56aa}
+.radius{display:none;background:#f5f7fa;border:1px solid #e0e5ed;border-radius:9px;padding:10px;margin:3px 0 10px}
+.radius.show{display:block}.radius input{width:100%;padding:6px}
+.radius-value{font-size:12px;color:#566276;margin-top:5px}
+.help{font-size:12px;line-height:1.5;color:#667286;background:#f7f9fc;border-radius:9px;padding:11px;margin-top:14px}
+.reset{width:100%;margin-top:10px;padding:10px;border:0;border-radius:8px;background:#182235;color:white;font-weight:700;cursor:pointer}
+#boardWrap{flex:1;min-width:0;min-height:0;padding:18px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#board{position:relative;width:min(100%,calc(100vh - 110px));height:auto;aspect-ratio:1/1;flex:0 0 auto;border:2px solid #7d8797;border-radius:10px;overflow:hidden;background:#f7e7bd;cursor:crosshair;touch-action:none}
+#grid{position:absolute;inset:0;pointer-events:none;background:
+linear-gradient(90deg,#0000000a 1px,transparent 1px) 0 0/50px 50px,
+linear-gradient(#0000000a 1px,transparent 1px) 0 0/50px 50px}
+.terrain{position:absolute;border-radius:50%;opacity:.35;pointer-events:none}
+.t1{width:250px;height:130px;background:#82b978;left:8%;top:18%;transform:rotate(-15deg)}
+.t2{width:190px;height:120px;background:#6da9c4;right:10%;top:12%;transform:rotate(18deg)}
+.t3{width:280px;height:150px;background:#d6a85f;left:32%;bottom:12%;transform:rotate(7deg)}
+.label{position:absolute;pointer-events:none;font-weight:700;color:#596273;font-size:13px}
+#treasureHint{position:absolute;font-size:30px;display:none;z-index:10;pointer-events:none;transform:translate(-50%,-50%)}
+.guess{position:absolute;width:24px;height:24px;border-radius:50%;background:#e53935;border:3px solid white;box-shadow:0 2px 8px #0007;transform:translate(-50%,-50%);z-index:20;pointer-events:none}
+.guess span{position:absolute;left:25px;top:-7px;background:#b91c1c;color:white;border-radius:10px;padding:2px 7px;font-size:11px;white-space:nowrap}
+.guess.near{background:#f59e0b}.guess.win{background:#16a34a}
+.measure,.line{position:absolute;height:3px;transform-origin:left center;z-index:15;pointer-events:none}
+.measure{background:#2563eb}.line{background:#059669}
+.measure-label,.line-label{position:absolute;background:white;border:1px solid #b8c2d0;border-radius:6px;padding:3px 7px;font-size:11px;z-index:30;pointer-events:none}
+.draw-circle{position:absolute;border:3px solid #7c3aed;background:#7c3aed18;border-radius:50%;z-index:12;pointer-events:none}
+.circle-handle{position:absolute;width:16px;height:16px;border-radius:50%;background:#7c3aed;border:2px solid white;right:-8px;top:50%;transform:translateY(-50%);cursor:ew-resize;pointer-events:auto;touch-action:none}
+.overlay{display:none;position:fixed;inset:0;background:#101827c9;align-items:center;justify-content:center;z-index:100}
+.overlay.show{display:flex}.card{background:white;border-radius:18px;padding:30px;text-align:center;width:min(420px,90vw)}
+.card h2{font-size:28px;margin:8px}.card p{color:#627086;line-height:1.5}
+.card button{border:0;background:#2563eb;color:white;padding:11px 23px;border-radius:9px;font-weight:700;cursor:pointer}
+@media(max-width:700px){
+  aside{width:180px;padding:10px}
+  #boardWrap{padding:10px}
+  #board{width:min(100%,calc(100vh - 95px));}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+<div><h1>Treasure Hunt</h1><div class="sub">Find Treasure in this Map</div></div>
+<div id="status">Make a guess!<div class="small" id="guessStatus">5 guesses remaining</div></div>
+</header>
+<div class="main">
+<aside>
+<div class="section">Tools</div>
+<button class="tool active" id="pick">📍 Pick a point</button>
+<button class="tool" id="ruler">📏 Ruler</button>
+<button class="tool" id="circle">⭕ Interactive circle</button>
+<div class="radius" id="radiusBox">
+<div class="section">Circle radius</div>
+<input id="radiusInput" type="number" min="1" max="1000" step="0.1" value="250">
+<div class="radius-value">Radius: <b id="radiusValue">250</b> map units<br>Enter the radius precisely.</div>
+</div>
+<button class="tool" id="line">╱ Draw straight line</button>
+<button class="tool" id="undo">↶ Undo last tool drawing</button>
+<div class="help"><b>How to play</b><br>
+Click the map with <b>Pick a point</b> to make a guess.<br>
+The treasure is found when your guess is within <b>20 map points</b>.<br><br>
+Use Ruler, Circle and Line to reason about the location.<br><br>
+<b>Undo</b> removes the latest tool drawing.</div>
+<button class="reset" id="reset">↻ New game</button>
+</aside>
+<div id="boardWrap">
+<div id="board">
+<div id="grid"></div>
+<div class="terrain t1"></div><div class="terrain t2"></div><div class="terrain t3"></div>
+<div class="label" style="left:12%;top:11%">Forest</div>
+<div class="label" style="right:13%;top:7%">Lake</div>
+<div class="label" style="left:42%;bottom:8%">Open ground</div>
+<div id="treasureHint">💎</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="overlay" id="overlay"><div class="card">
+<div style="font-size:55px" id="resultEmoji">🎉</div>
+<h2 id="resultTitle"></h2><p id="resultText"></p>
+<button id="closeResult" style="margin-right:8px;border:1px solid #c7ced9;background:white;color:#172033;padding:11px 23px;border-radius:9px;font-weight:700;cursor:pointer">Close</button>
+ <button id="again">Play again</button>
+</div></div>
+
+<script>
+(function(){
+var board=document.getElementById('board');
+var tool='pick', guesses=0, gameOver=false, first=null;
+var history=[], circle=null, dragging=false;
+var MAP=1000, MAX=5, FIND=20;
+var treasure={x:0,y:0};
+
+function newTreasure(){
+  treasure={x:.12+Math.random()*.76,y:.12+Math.random()*.76};
+}
+
+function showTreasure(){
+  var hint=document.getElementById('treasureHint');
+  hint.style.left=(treasure.x*100)+'%';
+  hint.style.top=(treasure.y*100)+'%';
+  hint.style.right='auto';
+  hint.style.bottom='auto';
+  hint.style.display='block';
+}
+function getPos(e){
+  var r=board.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};
+}
+function units(a,b){return Math.hypot(a.x-b.x,a.y-b.y)*MAP}
+function setTool(t){
+  tool=t; first=null; circle=null; dragging=false;
+  document.querySelectorAll('.tool').forEach(function(b){b.classList.remove('active')});
+  document.getElementById(t).classList.add('active');
+  document.getElementById('radiusBox').classList.toggle('show',t==='circle');
+  board.style.cursor=t==='pick'?'crosshair':'default';
+}
+function updateStatus(text){
+  document.getElementById('status').childNodes[0].nodeValue=text;
+}
+function guess(p){
+  if(gameOver||guesses>=MAX)return;
+  guesses++;
+  var d=units(p,treasure);
+  var g=document.createElement('div');
+  g.className='guess '+(d<FIND?'win':d<160?'near':'');
+  g.style.left=(p.x*100)+'%';g.style.top=(p.y*100)+'%';
+  g.innerHTML='<span>Guess '+guesses+'</span>';
+  board.appendChild(g);
+  updateStatus('Distance to treasure: '+Math.round(d)+' map units');
+  document.getElementById('guessStatus').textContent=(MAX-guesses)+' guesses remaining';
+  if(d<FIND){finish(true)}
+  else if(guesses>=MAX){finish(false)}
+}
+function finish(won){
+  gameOver=true;
+  showTreasure();
+  document.getElementById('resultEmoji').textContent=won?'🎉':'🗺️';
+  document.getElementById('resultTitle').textContent=won?'Congratulations!':'Out of guesses';
+  document.getElementById('resultText').innerHTML=won?
+    'You found the treasure in <b>'+guesses+(guesses===1?' guess':' guesses')+'</b>!':
+    'You used all 5 guesses. The treasure was hidden at the diamond location.';
+  document.getElementById('overlay').classList.add('show');
+}
+function circleUpdate(c,radius){
+  var br=board.getBoundingClientRect();
+  var centerX=c.center.x*br.width;
+  var centerY=c.center.y*br.height;
+
+  // Use the same normalized map coordinates as the ruler.
+  // The map is 1000 units wide and 1000 units high in coordinate space.
+  var rx=radius*br.width/MAP;
+  var ry=radius*br.height/MAP;
+
+  c.el.style.width=(rx*2)+'px';
+  c.el.style.height=(ry*2)+'px';
+  c.el.style.left=(centerX-rx)+'px';
+  c.el.style.top=(centerY-ry)+'px';
+}
+function createCircle(p){
+  var el=document.createElement('div');el.className='draw-circle';board.appendChild(el);
+  var radius=Math.max(1,Math.min(1000,Number(document.getElementById('radiusInput').value)||250));
+  var c={el:el,center:p,radius:radius};circle=c;
+  circleUpdate(c,radius);
+  var h=document.createElement('div');h.className='circle-handle';el.appendChild(h);
+  history.push([el]);
+  h.addEventListener('pointerdown',function(e){
+    e.preventDefault();e.stopPropagation();dragging=true;h.setPointerCapture(e.pointerId);
+  });
+  h.addEventListener('pointermove',function(e){
+    if(!dragging)return;
+    var br=board.getBoundingClientRect(),center={x:c.center.x*br.width,y:c.center.y*br.height};
+    var rp=Math.abs((e.clientX-br.left)-center.x);
+    c.radius=Math.max(1,Math.min(1000,rp/(br.width/MAP)));
+    document.getElementById('radiusInput').value=c.radius.toFixed(1);
+    document.getElementById('radiusValue').textContent=c.radius.toFixed(1);
+    circleUpdate(c,c.radius);
+  });
+  h.addEventListener('pointerup',function(){dragging=false});
+}
+board.addEventListener('pointerdown',function(e){
+  if(gameOver)return;
+  if(e.target.classList.contains('circle-handle'))return;
+  var p=getPos(e);
+  if(tool==='pick'){guess(p);return}
+  if(tool==='circle'){createCircle(p);return}
+  if(tool==='ruler'||tool==='line'){
+    if(!first){first=p;return}
+    var a=first,b=p,br=board.getBoundingClientRect();
+    var ax=a.x*br.width,ay=a.y*br.height,bx=b.x*br.width,by=b.y*br.height;
+    var el=document.createElement('div');
+    el.className=tool==='ruler'?'measure':'line';
+    el.style.left=ax+'px';el.style.top=ay+'px';
+    el.style.width=Math.hypot(bx-ax,by-ay)+'px';
+    el.style.transform='rotate('+Math.atan2(by-ay,bx-ax)*180/Math.PI+'deg)';
+    board.appendChild(el);
+    var lab=document.createElement('div');
+    lab.className=tool==='ruler'?'measure-label':'line-label';
+    lab.textContent=Math.round(units(a,b))+' map units';
+    lab.style.left=((ax+bx)/2)+'px';lab.style.top=((ay+by)/2-18)+'px';
+    board.appendChild(lab);
+    history.push([el,lab]);first=null;
+  }
+});
+document.getElementById('radiusInput').addEventListener('input',function(){
+  var v=Math.max(1,Math.min(1000,Number(this.value)||1));
+  document.getElementById('radiusValue').textContent=v;
+  if(circle)circleUpdate(circle,v);
+});
+document.getElementById('pick').onclick=function(){setTool('pick')};
+document.getElementById('ruler').onclick=function(){setTool('ruler')};
+document.getElementById('circle').onclick=function(){setTool('circle')};
+document.getElementById('line').onclick=function(){setTool('line')};
+document.getElementById('undo').onclick=function(){
+  var x=history.pop();if(x)x.forEach(function(e){e.remove()});
+  circle=null;first=null;
+};
+function reset(){
+  newTreasure();guesses=0;gameOver=false;first=null;circle=null;dragging=false;history=[];
+  board.querySelectorAll('.guess,.draw-circle,.measure,.measure-label,.line,.line-label').forEach(function(e){e.remove()});
+  document.getElementById('treasureHint').style.display='none';
+  document.getElementById('overlay').classList.remove('show');
+  updateStatus('Make a guess!');
+  document.getElementById('guessStatus').textContent='5 guesses remaining';
+  setTool('pick');
+}
+document.getElementById('reset').onclick=reset;
+document.getElementById('again').onclick=reset;
+document.getElementById('closeResult').onclick=function(){
+  document.getElementById('overlay').classList.remove('show');
+};
+newTreasure();setTool('pick');
+})();
+</script>
+</body>
+</html>
